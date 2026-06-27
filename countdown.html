@@ -140,6 +140,33 @@
     font-size: 0.75rem;
     padding: 0.4rem 0.7rem;
   }
+  .card .card-controls button.share {
+    background: #16321f;
+    border-color: #1f4a2d;
+    color: #7fe89a;
+  }
+  .card .card-controls button.share:hover {
+    background: #1c4028;
+  }
+  .toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1f2740;
+    color: #f5f7fa;
+    border: 1px solid #3b5bdb;
+    border-radius: 10px;
+    padding: 0.7rem 1.2rem;
+    font-size: 0.85rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    z-index: 999;
+  }
+  .toast.show {
+    opacity: 1;
+  }
   .empty-msg {
     text-align: center;
     color: #4a5478;
@@ -163,6 +190,7 @@
 
   <div id="cards"></div>
   <div class="empty-msg" id="emptyMsg" style="display:none;">No countdowns yet — add one above.</div>
+  <div class="toast" id="toast"></div>
 
 <script>
   let timers = []; // {id, name, target, paused, pausedRemaining}
@@ -243,6 +271,8 @@
         <div class="card-controls">
           <button onclick="togglePause(${t.id})" id="pauseBtn-${t.id}">${t.paused ? 'Resume' : 'Pause'}</button>
           <button onclick="resetTimer(${t.id})">Reset</button>
+          <button class="share" onclick="shareTimer(${t.id})">Share</button>
+          <button onclick="copyTimerText(${t.id})">Copy</button>
           <button class="danger" onclick="removeTimer(${t.id})">Remove</button>
         </div>
       </div>
@@ -262,6 +292,61 @@
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(window._toastTimer);
+    window._toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+  }
+
+  function timerShareText(t) {
+    const timeStr = t.target.toLocaleString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' });
+    return `⏱ ${t.name} — counting down to ${timeStr}`;
+  }
+
+  async function shareTimer(id) {
+    const t = timers.find(t => t.id === id);
+    if (!t) return;
+    const text = timerShareText(t);
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (e) {
+        // user cancelled or share failed — fall through to copy
+      }
+    }
+    copyToClipboard(text);
+    showToast('Copied — paste it anywhere to share');
+  }
+
+  function copyTimerText(id) {
+    const t = timers.find(t => t.id === id);
+    if (!t) return;
+    copyToClipboard(timerShareText(t));
+    showToast('Copied to clipboard');
+  }
+
+  function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
   }
 
   function tick() {
