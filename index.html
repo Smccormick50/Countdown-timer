@@ -46,7 +46,7 @@
     border-radius: 8px;
     padding: 0.6rem 0.75rem;
   }
-  #addForm input[type="time"] {
+  #addForm input[type="datetime-local"] {
     font-family: 'Courier New', monospace;
     font-size: 1rem;
     background: #161b29;
@@ -183,7 +183,7 @@
       <input type="text" id="nameInput" placeholder="Countdown name (e.g. Quitting Time)" maxlength="40">
     </div>
     <div class="row">
-      <input type="time" id="timeInput" step="1" value="16:30:00" style="flex:1 1 140px;">
+      <input type="datetime-local" id="timeInput" step="1" style="flex:1 1 220px;">
       <button type="submit" class="primary">Add Countdown</button>
     </div>
   </form>
@@ -199,27 +199,32 @@
   function pad(n) { return String(n).padStart(2, '0'); }
 
   function formatHMS(totalSeconds) {
-    const h = Math.floor(totalSeconds / 3600);
+    const days = Math.floor(totalSeconds / 86400);
+    const h = Math.floor((totalSeconds % 86400) / 3600);
     const m = Math.floor((totalSeconds % 3600) / 60);
     const s = totalSeconds % 60;
+    if (days > 0) {
+      return `${days}d ${pad(h)}:${pad(m)}:${pad(s)}`;
+    }
     return `${pad(h)}:${pad(m)}:${pad(s)}`;
   }
 
-  function buildTarget(h, m, s) {
-    const now = new Date();
-    const t = new Date(now);
-    t.setHours(h, m, s, 0);
-    if (t <= now) {
-      t.setDate(t.getDate() + 1);
-    }
+  function buildTarget(dateTimeStr) {
+    // dateTimeStr from <input type="datetime-local">, e.g. "2026-07-04T16:30"
+    const t = new Date(dateTimeStr);
     return t;
   }
 
-  function addTimer(name, h, m, s) {
+  function addTimer(name, dateTimeStr) {
+    const target = buildTarget(dateTimeStr);
+    if (isNaN(target.getTime())) {
+      alert('Please pick a valid date and time.');
+      return;
+    }
     const timer = {
       id: nextId++,
       name: name || 'Countdown',
-      target: buildTarget(h, m, s),
+      target: target,
       paused: false,
       pausedRemaining: null
     };
@@ -248,13 +253,28 @@
   function resetTimer(id) {
     const t = timers.find(t => t.id === id);
     if (!t) return;
-    const newTime = prompt('Reset "' + t.name + '" to what time? (HH:MM or HH:MM:SS, 24hr)', '16:30:00');
-    if (!newTime) return;
-    const parts = newTime.split(':').map(Number);
-    t.target = buildTarget(parts[0] || 0, parts[1] || 0, parts[2] || 0);
+
+    // Build a quick inline date+time picker via prompt fallback isn't great UX,
+    // so reuse the main form's input type by creating a temporary one.
+    const newVal = window.prompt(
+      'Reset "' + t.name + '" — enter new date & time as YYYY-MM-DDTHH:MM (e.g. 2026-07-04T16:30)',
+      toLocalInputValue(t.target)
+    );
+    if (!newVal) return;
+    const newTarget = buildTarget(newVal);
+    if (isNaN(newTarget.getTime())) {
+      alert('That date/time format wasn\'t recognized. Try YYYY-MM-DDTHH:MM.');
+      return;
+    }
+    t.target = newTarget;
     t.paused = false;
     t.pausedRemaining = null;
     renderCards();
+  }
+
+  function toLocalInputValue(date) {
+    const pad2 = n => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad2(date.getMonth()+1)}-${pad2(date.getDate())}T${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
   }
 
   function renderCards() {
@@ -384,14 +404,32 @@
     e.preventDefault();
     const name = document.getElementById('nameInput').value.trim();
     const val = document.getElementById('timeInput').value;
-    if (!val) return;
-    const parts = val.split(':').map(Number);
-    addTimer(name, parts[0] || 0, parts[1] || 0, parts[2] || 0);
+    if (!val) {
+      alert('Please pick a date and time.');
+      return;
+    }
+    addTimer(name, val);
     document.getElementById('nameInput').value = '';
+    document.getElementById('timeInput').value = '';
   });
 
-  // start with one default countdown
-  addTimer('Quitting Time', 16, 30, 0);
+  // default the date/time picker to today at 4:30 PM (or tomorrow if past)
+  (function setDefaultInputValue() {
+    const now = new Date();
+    const def = new Date(now);
+    def.setHours(16, 30, 0, 0);
+    if (def <= now) def.setDate(def.getDate() + 1);
+    document.getElementById('timeInput').value = toLocalInputValue(def);
+  })();
+
+  // start with one default countdown to today/tomorrow at 4:30 PM
+  (function addDefaultTimer() {
+    const now = new Date();
+    const def = new Date(now);
+    def.setHours(16, 30, 0, 0);
+    if (def <= now) def.setDate(def.getDate() + 1);
+    addTimer('Quitting Time', toLocalInputValue(def));
+  })();
 
   setInterval(tick, 1000);
   tick();
