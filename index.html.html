@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Countdown Timers</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: radial-gradient(circle at 50% 0%, #1a1f2e 0%, #0a0c12 60%);
+    font-family: 'Courier New', monospace;
+    color: #f5f7fa;
+    padding: 2.5rem 1.25rem 4rem;
+  }
+  .page-title {
+    text-align: center;
+    font-size: 1.4rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #cdd6f4;
+    margin-bottom: 2rem;
+  }
+  #addForm {
+    max-width: 480px;
+    margin: 0 auto 2.5rem;
+    background: #11151f;
+    border: 1px solid #232b42;
+    border-radius: 14px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  #addForm .row {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  #addForm input[type="text"] {
+    flex: 1 1 160px;
+    font-family: 'Courier New', monospace;
+    font-size: 1rem;
+    background: #161b29;
+    color: #f5f7fa;
+    border: 1px solid #2c3550;
+    border-radius: 8px;
+    padding: 0.6rem 0.75rem;
+  }
+  #addForm input[type="time"] {
+    font-family: 'Courier New', monospace;
+    font-size: 1rem;
+    background: #161b29;
+    color: #f5f7fa;
+    border: 1px solid #2c3550;
+    border-radius: 8px;
+    padding: 0.6rem 0.75rem;
+  }
+  button {
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    background: #1f2740;
+    color: #cdd6f4;
+    border: 1px solid #2c3550;
+    border-radius: 8px;
+    padding: 0.55rem 1rem;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+  button:hover { background: #2a3358; }
+  button:active { transform: scale(0.97); }
+  button.primary {
+    background: #3b5bdb;
+    border-color: #3b5bdb;
+    color: #fff;
+  }
+  button.primary:hover { background: #4c6bef; }
+  button.danger {
+    background: #2a1620;
+    border-color: #4a2030;
+    color: #e88;
+  }
+  button.danger:hover { background: #3a1c28; }
+
+  #cards {
+    max-width: 900px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.25rem;
+  }
+  .card {
+    background: #11151f;
+    border: 1px solid #232b42;
+    border-radius: 14px;
+    padding: 1.5rem 1.25rem;
+    text-align: center;
+    position: relative;
+  }
+  .card .name {
+    font-size: 1rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #8a96b8;
+    margin-bottom: 0.75rem;
+    word-break: break-word;
+  }
+  .card .clock {
+    font-size: clamp(2rem, 7vw, 2.8rem);
+    font-weight: bold;
+    letter-spacing: 0.04em;
+    color: #f5f7fa;
+    text-shadow: 0 0 24px rgba(120, 160, 255, 0.35);
+    font-variant-numeric: tabular-nums;
+  }
+  .card .clock.done {
+    color: #5eea8c;
+    text-shadow: 0 0 24px rgba(94, 234, 140, 0.5);
+  }
+  .card .sub {
+    margin-top: 0.6rem;
+    font-size: 0.8rem;
+    color: #5d6890;
+  }
+  .card .target-display {
+    margin-top: 0.4rem;
+    font-size: 0.7rem;
+    color: #4a5478;
+    letter-spacing: 0.5px;
+  }
+  .card .card-controls {
+    margin-top: 1rem;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .card .card-controls button {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.7rem;
+  }
+  .card .card-controls button.share {
+    background: #16321f;
+    border-color: #1f4a2d;
+    color: #7fe89a;
+  }
+  .card .card-controls button.share:hover {
+    background: #1c4028;
+  }
+  .toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1f2740;
+    color: #f5f7fa;
+    border: 1px solid #3b5bdb;
+    border-radius: 10px;
+    padding: 0.7rem 1.2rem;
+    font-size: 0.85rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    z-index: 999;
+  }
+  .toast.show {
+    opacity: 1;
+  }
+  .empty-msg {
+    text-align: center;
+    color: #4a5478;
+    margin-top: 2rem;
+    font-size: 0.9rem;
+  }
+</style>
+</head>
+<body>
+  <div class="page-title">Countdown Timers</div>
+
+  <form id="addForm">
+    <div class="row">
+      <input type="text" id="nameInput" placeholder="Countdown name (e.g. Quitting Time)" maxlength="40">
+    </div>
+    <div class="row">
+      <input type="time" id="timeInput" step="1" value="16:30:00" style="flex:1 1 140px;">
+      <button type="submit" class="primary">Add Countdown</button>
+    </div>
+  </form>
+
+  <div id="cards"></div>
+  <div class="empty-msg" id="emptyMsg" style="display:none;">No countdowns yet — add one above.</div>
+  <div class="toast" id="toast"></div>
+
+<script>
+  let timers = []; // {id, name, target, paused, pausedRemaining}
+  let nextId = 1;
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function formatHMS(totalSeconds) {
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return `${pad(h)}:${pad(m)}:${pad(s)}`;
+  }
+
+  function buildTarget(h, m, s) {
+    const now = new Date();
+    const t = new Date(now);
+    t.setHours(h, m, s, 0);
+    if (t <= now) {
+      t.setDate(t.getDate() + 1);
+    }
+    return t;
+  }
+
+  function addTimer(name, h, m, s) {
+    const timer = {
+      id: nextId++,
+      name: name || 'Countdown',
+      target: buildTarget(h, m, s),
+      paused: false,
+      pausedRemaining: null
+    };
+    timers.push(timer);
+    renderCards();
+  }
+
+  function removeTimer(id) {
+    timers = timers.filter(t => t.id !== id);
+    renderCards();
+  }
+
+  function togglePause(id) {
+    const t = timers.find(t => t.id === id);
+    if (!t) return;
+    if (!t.paused) {
+      t.pausedRemaining = t.target - new Date();
+      t.paused = true;
+    } else {
+      t.target = new Date(Date.now() + Math.max(0, t.pausedRemaining));
+      t.paused = false;
+    }
+    renderCards();
+  }
+
+  function resetTimer(id) {
+    const t = timers.find(t => t.id === id);
+    if (!t) return;
+    const newTime = prompt('Reset "' + t.name + '" to what time? (HH:MM or HH:MM:SS, 24hr)', '16:30:00');
+    if (!newTime) return;
+    const parts = newTime.split(':').map(Number);
+    t.target = buildTarget(parts[0] || 0, parts[1] || 0, parts[2] || 0);
+    t.paused = false;
+    t.pausedRemaining = null;
+    renderCards();
+  }
+
+  function renderCards() {
+    const cardsEl = document.getElementById('cards');
+    const emptyMsg = document.getElementById('emptyMsg');
+    emptyMsg.style.display = timers.length === 0 ? 'block' : 'none';
+
+    cardsEl.innerHTML = timers.map(t => `
+      <div class="card" data-id="${t.id}">
+        <div class="name">${escapeHtml(t.name)}</div>
+        <div class="clock" id="clock-${t.id}">--:--:--</div>
+        <div class="sub" id="sub-${t.id}"></div>
+        <div class="target-display" id="target-${t.id}"></div>
+        <div class="card-controls">
+          <button onclick="togglePause(${t.id})" id="pauseBtn-${t.id}">${t.paused ? 'Resume' : 'Pause'}</button>
+          <button onclick="resetTimer(${t.id})">Reset</button>
+          <button class="share" onclick="shareTimer(${t.id})">Share</button>
+          <button onclick="copyTimerText(${t.id})">Copy</button>
+          <button class="danger" onclick="removeTimer(${t.id})">Remove</button>
+        </div>
+      </div>
+    `).join('');
+
+    timers.forEach(t => updateTargetDisplay(t));
+  }
+
+  function updateTargetDisplay(t) {
+    const el = document.getElementById('target-' + t.id);
+    if (el) {
+      el.textContent = 'Target: ' + t.target.toLocaleString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', month: 'short', day: 'numeric' });
+    }
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(window._toastTimer);
+    window._toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+  }
+
+  function timerShareText(t) {
+    const timeStr = t.target.toLocaleString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' });
+    return `⏱ ${t.name} — counting down to ${timeStr}`;
+  }
+
+  async function shareTimer(id) {
+    const t = timers.find(t => t.id === id);
+    if (!t) return;
+    const text = timerShareText(t);
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (e) {
+        // user cancelled or share failed — fall through to copy
+      }
+    }
+    copyToClipboard(text);
+    showToast('Copied — paste it anywhere to share');
+  }
+
+  function copyTimerText(id) {
+    const t = timers.find(t => t.id === id);
+    if (!t) return;
+    copyToClipboard(timerShareText(t));
+    showToast('Copied to clipboard');
+  }
+
+  function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  function tick() {
+    timers.forEach(t => {
+      const clockEl = document.getElementById('clock-' + t.id);
+      const subEl = document.getElementById('sub-' + t.id);
+      if (!clockEl) return;
+
+      if (t.paused) {
+        const totalSeconds = Math.max(0, Math.floor(t.pausedRemaining / 1000));
+        clockEl.textContent = formatHMS(totalSeconds);
+        clockEl.classList.remove('done');
+        subEl.textContent = 'Paused';
+        return;
+      }
+
+      const now = new Date();
+      const diff = t.target - now;
+
+      if (diff <= 0) {
+        clockEl.textContent = '00:00:00';
+        clockEl.classList.add('done');
+        subEl.textContent = "Time's up!";
+        return;
+      }
+
+      const totalSeconds = Math.floor(diff / 1000);
+      clockEl.textContent = formatHMS(totalSeconds);
+      clockEl.classList.remove('done');
+      subEl.textContent = now.toLocaleTimeString();
+    });
+  }
+
+  document.getElementById('addForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = document.getElementById('nameInput').value.trim();
+    const val = document.getElementById('timeInput').value;
+    if (!val) return;
+    const parts = val.split(':').map(Number);
+    addTimer(name, parts[0] || 0, parts[1] || 0, parts[2] || 0);
+    document.getElementById('nameInput').value = '';
+  });
+
+  // start with one default countdown
+  addTimer('Quitting Time', 16, 30, 0);
+
+  setInterval(tick, 1000);
+  tick();
+</script>
+</body>
+</html>
